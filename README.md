@@ -4,6 +4,8 @@
 
 The AntiDeface WordPress Plugin is designed to protect your WordPress site from defacement attacks. It monitors your website for unauthorized changes and provides alerts to ensure your content remains secure.
 
+This plugin is in current development. Further enhancement and development of this plugin is encouraged. Let's keep everything safe.
+
 ## Features
 
 - **Real-time Monitoring**: Continuously scans your website for any unauthorized changes.
@@ -39,3 +41,6 @@ For any issues or questions, please open an issue on the [GitHub repository](#).
 ## Acknowledgements
 
 Special thanks to all the contributors who have helped in the development of this plugin.
+## Community Involvement
+
+This project aims to be a community-based initiative, and we need all professionals to help achieve our goal of keeping WordPress safe from exploitation. Your expertise and contributions are invaluable in enhancing the security and functionality of this plugin. Join us in making the web a safer place.
