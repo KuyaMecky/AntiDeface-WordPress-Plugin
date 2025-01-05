@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Anti-Deface Plugin
  * Description: Monitors changes in WordPress core files and checks for vulnerabilities.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Michael Tallada
  */
 
@@ -12,15 +12,32 @@ if (!defined('ABSPATH')) {
 
 class AntiDefacePlugin {
     private $hashes_file;
+    private $index_file;
+    private $index_file_backup;
 
     public function __construct() {
         $this->hashes_file = plugin_dir_path(__FILE__) . 'file_hashes.json';
+        $this->index_file = ABSPATH . 'index.php';
+        $this->index_file_backup = plugin_dir_path(__FILE__) . 'index_backup.php';
 
         // Hooks
         add_action('admin_menu', array($this, 'add_admin_menu'));
-        add_action('admin_post_remove_unwanted_file', array(__CLASS__, 'remove_unwanted_file'));
+        add_action('admin_post_remove_unwanted_files', array(__CLASS__, 'remove_unwanted_files'));
+        add_action('admin_post_deactivate_plugins', array(__CLASS__, 'deactivate_plugins'));
+        add_action('admin_post_delete_plugins', array(__CLASS__, 'delete_plugins'));
         register_activation_hook(__FILE__, array(__CLASS__, 'on_activation'));
         register_deactivation_hook(__FILE__, array(__CLASS__, 'on_deactivation'));
+        add_action('init', array($this, 'check_index_file_integrity'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_styles'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+    }
+
+    public function enqueue_styles() {
+        wp_enqueue_style('anti-deface-plugin-styles', plugin_dir_url(__FILE__) . 'css.css');
+    }
+
+    public function enqueue_scripts() {
+        wp_enqueue_script('anti-deface-plugin-scripts', plugin_dir_url(__FILE__) . 'script.js', array('jquery'), null, true);
     }
 
     public function add_admin_menu() {
@@ -37,17 +54,77 @@ class AntiDefacePlugin {
     public function admin_page() {
         echo '<h1>Anti-Deface Plugin</h1>';
         echo '<p>Monitoring WordPress core files for changes.</p>';
+
+        if (isset($_POST['scan_wp_content']) && check_admin_referer('scan_wp_content_action', 'scan_wp_content_nonce')) {
+            $vulnerabilities = $this->scan_wp_content();
+            if (!empty($vulnerabilities)) {
+                echo '<h2>Vulnerabilities Found:</h2>';
+                echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" id="manage-files-form">';
+                wp_nonce_field('deactivate_plugins_action', 'deactivate_plugins_nonce');
+                echo '<input type="hidden" name="action" value="deactivate_plugins">';
+                echo '<ul>';
+                foreach ($vulnerabilities as $vulnerability) {
+                    echo '<li>';
+                    echo '<input type="checkbox" name="files[]" value="' . esc_attr($vulnerability['file']) . '">';
+                    echo '<strong>File:</strong> ' . esc_html($vulnerability['file']) . '<br>';
+                    echo '<strong>Issue:</strong> ' . esc_html($vulnerability['issue']) . '<br>';
+                    echo '<strong>Solution:</strong> ' . esc_html($vulnerability['solution']) . '<br>';
+                    echo '</li>';
+                }
+                echo '</ul>';
+                echo '<input type="submit" value="Deactivate Selected Plugins" class="button button-secondary">';
+                echo '</form>';
+            } else {
+                echo '<p>No vulnerabilities found in wp-content.</p>';
+            }
+        }
+
+        if (isset($_POST['scan_wp_directory']) && check_admin_referer('scan_wp_directory_action', 'scan_wp_directory_nonce')) {
+            $recent_files = $this->scan_wp_directory();
+            if (!empty($recent_files)) {
+                echo '<h2>Recent and Unwanted Files Found:</h2>';
+                echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" id="manage-files-form">';
+                wp_nonce_field('remove_unwanted_files_action', 'remove_unwanted_files_nonce');
+                echo '<input type="hidden" name="action" value="remove_unwanted_files">';
+                echo '<ul>';
+                foreach ($recent_files as $file) {
+                    echo '<li>';
+                    echo '<input type="checkbox" name="files[]" value="' . esc_attr($file) . '">';
+                    echo '<strong>File:</strong> ' . esc_html($file) . '<br>';
+                    echo '</li>';
+                }
+                echo '</ul>';
+                echo '<input type="submit" value="Remove Selected Files" class="button button-secondary">';
+                echo '</form>';
+            } else {
+                echo '<p>No recent or unwanted files found.</p>';
+            }
+        }
+
+        echo '<form method="post">';
+        wp_nonce_field('scan_wp_content_action', 'scan_wp_content_nonce');
+        echo '<input type="submit" name="scan_wp_content" value="Scan wp-content for Vulnerabilities" class="button button-primary">';
+        echo '</form>';
+
+        echo '<form method="post">';
+        wp_nonce_field('scan_wp_directory_action', 'scan_wp_directory_nonce');
+        echo '<input type="submit" name="scan_wp_directory" value="Scan WordPress Directory for Recent and Unwanted Files" class="button button-primary">';
+        echo '</form>';
     }
 
     public static function on_activation() {
         $instance = new self();
         $instance->generate_file_hashes();
+        $instance->backup_index_file();
     }
 
     public static function on_deactivation() {
         $instance = new self();
         if (file_exists($instance->hashes_file)) {
             unlink($instance->hashes_file);
+        }
+        if (file_exists($instance->index_file_backup)) {
+            unlink($instance->index_file_backup);
         }
     }
 
@@ -100,20 +177,111 @@ class AntiDefacePlugin {
         }
     }
 
-    public static function remove_unwanted_file() {
+    public function backup_index_file() {
+        if (file_exists($this->index_file)) {
+            copy($this->index_file, $this->index_file_backup);
+        }
+    }
+
+    public function check_index_file_integrity() {
+        if (file_exists($this->index_file) && file_exists($this->index_file_backup)) {
+            $current_hash = md5_file($this->index_file);
+            $backup_hash = md5_file($this->index_file_backup);
+
+            if ($current_hash !== $backup_hash) {
+                copy($this->index_file_backup, $this->index_file);
+                error_log('index.php file was modified and has been restored.');
+            }
+        }
+    }
+
+    public static function remove_unwanted_files() {
         if (!current_user_can('manage_options')) {
             wp_die(__('Unauthorized user', 'anti-deface-plugin'));
         }
 
-        $file = isset($_POST['file']) ? sanitize_text_field($_POST['file']) : '';
+        check_admin_referer('remove_unwanted_files_action', 'remove_unwanted_files_nonce');
 
-        if (file_exists($file)) {
-            unlink($file);
-            wp_redirect(admin_url('admin.php?page=anti-deface-plugin&status=removed'));
-        } else {
-            wp_redirect(admin_url('admin.php?page=anti-deface-plugin&status=error'));
+        $files = isset($_POST['files']) ? array_map('sanitize_text_field', $_POST['files']) : array();
+
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                unlink($file);
+            }
         }
+
+        wp_redirect(admin_url('admin.php?page=anti-deface-plugin&status=removed'));
         exit;
+    }
+
+    public static function deactivate_plugins() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Unauthorized user', 'anti-deface-plugin'));
+        }
+
+        check_admin_referer('deactivate_plugins_action', 'deactivate_plugins_nonce');
+
+        $plugin_files = isset($_POST['files']) ? array_map('sanitize_text_field', $_POST['files']) : array();
+
+        foreach ($plugin_files as $plugin_file) {
+            if (is_plugin_active($plugin_file)) {
+                deactivate_plugins($plugin_file);
+            }
+        }
+
+        wp_redirect(admin_url('admin.php?page=anti-deface-plugin&status=deactivated'));
+        exit;
+    }
+
+    public static function delete_plugins() {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Unauthorized user', 'anti-deface-plugin'));
+        }
+
+        check_admin_referer('delete_plugins_action', 'delete_plugins_nonce');
+
+        $plugin_files = isset($_POST['files']) ? array_map('sanitize_text_field', $_POST['files']) : array();
+
+        foreach ($plugin_files as $plugin_file) {
+            if (file_exists(WP_PLUGIN_DIR . '/' . $plugin_file)) {
+                delete_plugins(array($plugin_file));
+            }
+        }
+
+        wp_redirect(admin_url('admin.php?page=anti-deface-plugin&status=deleted'));
+        exit;
+    }
+
+    public function scan_wp_content() {
+        $vulnerabilities = array();
+        $files = $this->get_all_files(WP_CONTENT_DIR);
+
+        foreach ($files as $file) {
+            // Example vulnerability check: look for eval() usage
+            if (strpos(file_get_contents($file), 'eval(') !== false) {
+                $vulnerabilities[] = array(
+                    'file' => $file,
+                    'issue' => 'Usage of eval() detected',
+                    'solution' => 'Remove or replace eval() with safer code'
+                );
+            }
+        }
+
+        return $vulnerabilities;
+    }
+
+    public function scan_wp_directory() {
+        $recent_files = array();
+        $files = $this->get_all_files(ABSPATH);
+        $time_limit = strtotime('-1 week'); // Example: files modified in the last week
+
+        foreach ($files as $file) {
+            if (filemtime($file) > $time_limit) {
+                $recent_files[] = $file;
+            }
+        }
+
+        return $recent_files;
     }
 }
 
