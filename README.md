@@ -15,7 +15,7 @@ This plugin is in current development. Further enhancement and development of th
 
 ## Installation
 
-1. Download the plugin from the [GitHub repository](#).
+1. Download the plugin from the [GitHub repository](https://github.com/KuyaMecky/AntiDeface-WordPress-Plugin.git).
 2. Upload the plugin files to the `/wp-content/plugins/antideface` directory.
 3. Activate the plugin through the 'Plugins' menu in WordPress.
 4. Configure the plugin settings from the 'AntiDeface' menu in the WordPress admin dashboard.
@@ -36,7 +36,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Support
 
-For any issues or questions, please open an issue on the [GitHub repository](#).
+For any issues or questions, please open an issue on the [GitHub repository](https://github.com/KuyaMecky/AntiDeface-WordPress-Plugin).
 
 ## Acknowledgements
 
