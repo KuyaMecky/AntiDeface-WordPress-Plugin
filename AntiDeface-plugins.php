@@ -11,7 +11,6 @@ class AntiDefacePlugin {
     private $vulnerability_api_url = 'https://wpvulndb.com/api/v3/';
 
     public function __construct() {
-        register_activation_hook(__FILE__, array($this, 'generate_file_hashes'));
         add_action('init', array($this, 'check_file_integrity'));
         add_action('init', array($this, 'scan_for_unwanted_files'));
         add_action('init', array($this, 'scan_for_vulnerable_themes_and_plugins'));
@@ -202,6 +201,7 @@ class AntiDefacePlugin {
 }
 
 new AntiDefacePlugin();
-
+register_activation_hook(__FILE__, array('AntiDefacePlugin', 'generate_file_hashes'));
+new AntiDefacePlugin();
 add_action('admin_post_remove_unwanted_file', array('AntiDefacePlugin', 'remove_unwanted_file'));
 ?>
