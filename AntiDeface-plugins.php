@@ -103,6 +103,11 @@ class AntiDefacePlugin {
                         spinner.style.display = "block";
                     });
                 });
+
+                document.getElementById("select-all").addEventListener("click", function() {
+                    const checkboxes = document.querySelectorAll("input[type=\'checkbox\']");
+                    checkboxes.forEach(checkbox => checkbox.checked = this.checked);
+                });
             });
         </script>';
     }
@@ -177,7 +182,7 @@ class AntiDefacePlugin {
             if (!empty($vulnerabilities)) {
                 echo '<h2>Vulnerabilities Found:</h2>';
                 echo '<table class="wp-list-table widefat fixed striped">';
-                echo '<thead><tr><th>File</th><th>Issue</th><th>Solution</th><th>Severity</th><th>Date</th></tr></thead>';
+                echo '<thead><tr><th>File</th><th>Issue</th><th>Solution</th><th>Severity</th><th>Date</th></thead>';
                 echo '<tbody>';
                 foreach ($vulnerabilities as $vulnerability) {
                     $severity_color = $this->get_severity_color($vulnerability['severity']);
@@ -358,7 +363,7 @@ class AntiDefacePlugin {
     public function scan_wp_content() {
         $vulnerabilities = array();
         $files = $this->get_all_files(WP_CONTENT_DIR);
-
+    
         foreach ($files as $file) {
             // Example vulnerability check: look for eval() usage
             if (strpos(file_get_contents($file), 'eval(') !== false) {
@@ -367,33 +372,41 @@ class AntiDefacePlugin {
                     'issue' => 'Usage of eval() detected',
                     'solution' => 'Remove or replace eval() with safer code',
                     'severity' => 'high',
+                    'description' => 'The eval() function is dangerous because it allows execution of arbitrary PHP code, which can lead to security vulnerabilities such as code injection.',
                     'date' => date('Y-m-d H:i:s', filemtime($file))
                 );
             }
         }
-
+    
         return $vulnerabilities;
     }
-
+    
     public function scan_wp_directory() {
         $recent_files = array();
         $files = $this->get_all_files(ABSPATH);
         $time_limit = strtotime('-1 week'); // Example: files modified in the last week
-
+    
         foreach ($files as $file) {
             if (filemtime($file) > $time_limit) {
-                $recent_files[] = $file;
+                $recent_files[] = array(
+                    'file' => $file,
+                    'issue' => 'Recent file modification detected',
+                    'solution' => 'Review the file to ensure it is not malicious',
+                    'severity' => 'medium',
+                    'description' => 'Files modified recently could indicate unauthorized changes or potential security breaches. It is important to review these files to ensure they are legitimate.',
+                    'date' => date('Y-m-d H:i:s', filemtime($file))
+                );
             }
         }
-
+    
         return $recent_files;
     }
-
+    
     public function scan_themes_plugins() {
         $vulnerabilities = array();
         $themes = wp_get_themes();
         $plugins = get_plugins();
-
+    
         foreach ($themes as $theme) {
             $theme_files = $this->get_all_files($theme->get_stylesheet_directory());
             foreach ($theme_files as $file) {
@@ -403,12 +416,13 @@ class AntiDefacePlugin {
                         'issue' => 'Usage of eval() detected in theme',
                         'solution' => 'Remove or replace eval() with safer code',
                         'severity' => 'high',
+                        'description' => 'The eval() function is dangerous because it allows execution of arbitrary PHP code, which can lead to security vulnerabilities such as code injection.',
                         'date' => date('Y-m-d H:i:s', filemtime($file))
                     );
                 }
             }
         }
-
+    
         foreach ($plugins as $plugin_file => $plugin_data) {
             $plugin_files = $this->get_all_files(WP_PLUGIN_DIR . '/' . dirname($plugin_file));
             foreach ($plugin_files as $file) {
@@ -418,14 +432,16 @@ class AntiDefacePlugin {
                         'issue' => 'Usage of eval() detected in plugin',
                         'solution' => 'Remove or replace eval() with safer code',
                         'severity' => 'high',
+                        'description' => 'The eval() function is dangerous because it allows execution of arbitrary PHP code, which can lead to security vulnerabilities such as code injection.',
                         'date' => date('Y-m-d H:i:s', filemtime($file))
                     );
                 }
             }
         }
-
+    
         return $vulnerabilities;
     }
+    
 }
 
 new AntiDefacePlugin();
