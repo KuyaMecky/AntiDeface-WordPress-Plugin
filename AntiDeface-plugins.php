@@ -55,49 +55,47 @@ class AntiDefacePlugin {
         echo '<h1>Anti-Deface Plugin</h1>';
         echo '<p>Monitoring WordPress core files for changes.</p>';
 
+        echo '<div class="nav-tab-wrapper">';
+        echo '<a href="#scan-wp-content" class="nav-tab nav-tab-active">Scan wp-content</a>';
+        echo '<a href="#scan-wp-directory" class="nav-tab">Scan WordPress Directory</a>';
+        echo '<a href="#scan-themes-plugins" class="nav-tab">Scan Themes & Plugins</a>';
+        echo '</div>';
+
+        echo '<div id="scan-wp-content" class="tab-content">';
+        $this->scan_wp_content_tab();
+        echo '</div>';
+
+        echo '<div id="scan-wp-directory" class="tab-content" style="display:none;">';
+        $this->scan_wp_directory_tab();
+        echo '</div>';
+
+        echo '<div id="scan-themes-plugins" class="tab-content" style="display:none;">';
+        $this->scan_themes_plugins_tab();
+        echo '</div>';
+    }
+
+    private function scan_wp_content_tab() {
         if (isset($_POST['scan_wp_content']) && check_admin_referer('scan_wp_content_action', 'scan_wp_content_nonce')) {
             $vulnerabilities = $this->scan_wp_content();
             if (!empty($vulnerabilities)) {
                 echo '<h2>Vulnerabilities Found:</h2>';
-                echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" id="manage-files-form">';
-                wp_nonce_field('deactivate_plugins_action', 'deactivate_plugins_nonce');
-                echo '<input type="hidden" name="action" value="deactivate_plugins">';
-                echo '<ul>';
+                echo '<table class="wp-list-table widefat fixed striped">';
+                echo '<thead><tr><th>File</th><th>Issue</th><th>Solution</th><th>Severity</th><th>Date</th></tr></thead>';
+                echo '<tbody>';
                 foreach ($vulnerabilities as $vulnerability) {
-                    echo '<li>';
-                    echo '<input type="checkbox" name="files[]" value="' . esc_attr($vulnerability['file']) . '">';
-                    echo '<strong>File:</strong> ' . esc_html($vulnerability['file']) . '<br>';
-                    echo '<strong>Issue:</strong> ' . esc_html($vulnerability['issue']) . '<br>';
-                    echo '<strong>Solution:</strong> ' . esc_html($vulnerability['solution']) . '<br>';
-                    echo '</li>';
+                    $severity_color = $this->get_severity_color($vulnerability['severity']);
+                    echo '<tr style="background-color:' . esc_attr($severity_color) . ';">';
+                    echo '<td>' . esc_html($vulnerability['file']) . '</td>';
+                    echo '<td>' . esc_html($vulnerability['issue']) . '</td>';
+                    echo '<td>' . esc_html($vulnerability['solution']) . '</td>';
+                    echo '<td>' . esc_html($vulnerability['severity']) . '</td>';
+                    echo '<td>' . esc_html($vulnerability['date']) . '</td>';
+                    echo '</tr>';
                 }
-                echo '</ul>';
-                echo '<input type="submit" value="Deactivate Selected Plugins" class="button button-secondary">';
-                echo '</form>';
+                echo '</tbody>';
+                echo '</table>';
             } else {
                 echo '<p>No vulnerabilities found in wp-content.</p>';
-            }
-        }
-
-        if (isset($_POST['scan_wp_directory']) && check_admin_referer('scan_wp_directory_action', 'scan_wp_directory_nonce')) {
-            $recent_files = $this->scan_wp_directory();
-            if (!empty($recent_files)) {
-                echo '<h2>Recent and Unwanted Files Found:</h2>';
-                echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" id="manage-files-form">';
-                wp_nonce_field('remove_unwanted_files_action', 'remove_unwanted_files_nonce');
-                echo '<input type="hidden" name="action" value="remove_unwanted_files">';
-                echo '<ul>';
-                foreach ($recent_files as $file) {
-                    echo '<li>';
-                    echo '<input type="checkbox" name="files[]" value="' . esc_attr($file) . '">';
-                    echo '<strong>File:</strong> ' . esc_html($file) . '<br>';
-                    echo '</li>';
-                }
-                echo '</ul>';
-                echo '<input type="submit" value="Remove Selected Files" class="button button-secondary">';
-                echo '</form>';
-            } else {
-                echo '<p>No recent or unwanted files found.</p>';
             }
         }
 
@@ -105,11 +103,77 @@ class AntiDefacePlugin {
         wp_nonce_field('scan_wp_content_action', 'scan_wp_content_nonce');
         echo '<input type="submit" name="scan_wp_content" value="Scan wp-content for Vulnerabilities" class="button button-primary">';
         echo '</form>';
+    }
+
+    private function scan_wp_directory_tab() {
+        if (isset($_POST['scan_wp_directory']) && check_admin_referer('scan_wp_directory_action', 'scan_wp_directory_nonce')) {
+            $recent_files = $this->scan_wp_directory();
+            if (!empty($recent_files)) {
+                echo '<h2>Recent and Unwanted Files Found:</h2>';
+                echo '<table class="wp-list-table widefat fixed striped">';
+                echo '<thead><tr><th>File</th><th>Date</th></tr></thead>';
+                echo '<tbody>';
+                foreach ($recent_files as $file) {
+                    echo '<tr>';
+                    echo '<td>' . esc_html($file) . '</td>';
+                    echo '<td>' . esc_html(date('Y-m-d H:i:s', filemtime($file))) . '</td>';
+                    echo '</tr>';
+                }
+                echo '</tbody>';
+                echo '</table>';
+            } else {
+                echo '<p>No recent or unwanted files found.</p>';
+            }
+        }
 
         echo '<form method="post">';
         wp_nonce_field('scan_wp_directory_action', 'scan_wp_directory_nonce');
         echo '<input type="submit" name="scan_wp_directory" value="Scan WordPress Directory for Recent and Unwanted Files" class="button button-primary">';
         echo '</form>';
+    }
+
+    private function scan_themes_plugins_tab() {
+        if (isset($_POST['scan_themes_plugins']) && check_admin_referer('scan_themes_plugins_action', 'scan_themes_plugins_nonce')) {
+            $vulnerabilities = $this->scan_themes_plugins();
+            if (!empty($vulnerabilities)) {
+                echo '<h2>Vulnerabilities Found:</h2>';
+                echo '<table class="wp-list-table widefat fixed striped">';
+                echo '<thead><tr><th>File</th><th>Issue</th><th>Solution</th><th>Severity</th><th>Date</th></tr></thead>';
+                echo '<tbody>';
+                foreach ($vulnerabilities as $vulnerability) {
+                    $severity_color = $this->get_severity_color($vulnerability['severity']);
+                    echo '<tr style="background-color:' . esc_attr($severity_color) . ';">';
+                    echo '<td>' . esc_html($vulnerability['file']) . '</td>';
+                    echo '<td>' . esc_html($vulnerability['issue']) . '</td>';
+                    echo '<td>' . esc_html($vulnerability['solution']) . '</td>';
+                    echo '<td>' . esc_html($vulnerability['severity']) . '</td>';
+                    echo '<td>' . esc_html($vulnerability['date']) . '</td>';
+                    echo '</tr>';
+                }
+                echo '</tbody>';
+                echo '</table>';
+            } else {
+                echo '<p>No vulnerabilities found in themes and plugins.</p>';
+            }
+        }
+
+        echo '<form method="post">';
+        wp_nonce_field('scan_themes_plugins_action', 'scan_themes_plugins_nonce');
+        echo '<input type="submit" name="scan_themes_plugins" value="Scan Themes & Plugins for Vulnerabilities" class="button button-primary">';
+        echo '</form>';
+    }
+
+    private function get_severity_color($severity) {
+        switch ($severity) {
+            case 'high':
+                return '#ff0000'; // Red
+            case 'medium':
+                return '#ffcc00'; // Yellow
+            case 'low':
+                return '#00ff00'; // Green
+            default:
+                return '#ffffff'; // White
+        }
     }
 
     public static function on_activation() {
@@ -262,7 +326,9 @@ class AntiDefacePlugin {
                 $vulnerabilities[] = array(
                     'file' => $file,
                     'issue' => 'Usage of eval() detected',
-                    'solution' => 'Remove or replace eval() with safer code'
+                    'solution' => 'Remove or replace eval() with safer code',
+                    'severity' => 'high',
+                    'date' => date('Y-m-d H:i:s', filemtime($file))
                 );
             }
         }
@@ -282,6 +348,44 @@ class AntiDefacePlugin {
         }
 
         return $recent_files;
+    }
+
+    public function scan_themes_plugins() {
+        $vulnerabilities = array();
+        $themes = wp_get_themes();
+        $plugins = get_plugins();
+
+        foreach ($themes as $theme) {
+            $theme_files = $this->get_all_files($theme->get_stylesheet_directory());
+            foreach ($theme_files as $file) {
+                if (strpos(file_get_contents($file), 'eval(') !== false) {
+                    $vulnerabilities[] = array(
+                        'file' => $file,
+                        'issue' => 'Usage of eval() detected in theme',
+                        'solution' => 'Remove or replace eval() with safer code',
+                        'severity' => 'high',
+                        'date' => date('Y-m-d H:i:s', filemtime($file))
+                    );
+                }
+            }
+        }
+
+        foreach ($plugins as $plugin_file => $plugin_data) {
+            $plugin_files = $this->get_all_files(WP_PLUGIN_DIR . '/' . dirname($plugin_file));
+            foreach ($plugin_files as $file) {
+                if (strpos(file_get_contents($file), 'eval(') !== false) {
+                    $vulnerabilities[] = array(
+                        'file' => $file,
+                        'issue' => 'Usage of eval() detected in plugin',
+                        'solution' => 'Remove or replace eval() with safer code',
+                        'severity' => 'high',
+                        'date' => date('Y-m-d H:i:s', filemtime($file))
+                    );
+                }
+            }
+        }
+
+        return $vulnerabilities;
     }
 }
 
