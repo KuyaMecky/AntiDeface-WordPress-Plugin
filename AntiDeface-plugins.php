@@ -55,6 +55,11 @@ class AntiDefacePlugin {
         echo '<h1>Anti-Deface Plugin</h1>';
         echo '<p>Monitoring WordPress core files for changes.</p>';
 
+        // Spinner HTML
+        echo '<div id="spinner" style="display:none;">
+                <div class="spinner"></div>
+              </div>';
+
         echo '<div class="nav-tab-wrapper">';
         echo '<a href="#scan-wp-content" class="nav-tab nav-tab-active">Scan wp-content</a>';
         echo '<a href="#scan-wp-directory" class="nav-tab">Scan WordPress Directory</a>';
@@ -72,6 +77,34 @@ class AntiDefacePlugin {
         echo '<div id="scan-themes-plugins" class="tab-content" style="display:none;">';
         $this->scan_themes_plugins_tab();
         echo '</div>';
+
+        // Add JavaScript for tab switching and loading indicator
+        echo '<script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const tabs = document.querySelectorAll(".nav-tab");
+                const contents = document.querySelectorAll(".tab-content");
+                const spinner = document.getElementById("spinner");
+
+                tabs.forEach(tab => {
+                    tab.addEventListener("click", function(event) {
+                        event.preventDefault();
+                        const target = this.getAttribute("href");
+
+                        tabs.forEach(t => t.classList.remove("nav-tab-active"));
+                        this.classList.add("nav-tab-active");
+
+                        contents.forEach(content => content.style.display = "none");
+                        document.querySelector(target).style.display = "block";
+                    });
+                });
+
+                document.querySelectorAll("form").forEach(form => {
+                    form.addEventListener("submit", function() {
+                        spinner.style.display = "block";
+                    });
+                });
+            });
+        </script>';
     }
 
     private function scan_wp_content_tab() {
@@ -84,11 +117,11 @@ class AntiDefacePlugin {
                 echo '<tbody>';
                 foreach ($vulnerabilities as $vulnerability) {
                     $severity_color = $this->get_severity_color($vulnerability['severity']);
-                    echo '<tr style="background-color:' . esc_attr($severity_color) . ';">';
+                    echo '<tr>';
                     echo '<td>' . esc_html($vulnerability['file']) . '</td>';
                     echo '<td>' . esc_html($vulnerability['issue']) . '</td>';
                     echo '<td>' . esc_html($vulnerability['solution']) . '</td>';
-                    echo '<td>' . esc_html($vulnerability['severity']) . '</td>';
+                    echo '<td style="color:' . esc_attr($severity_color) . ';">' . esc_html($vulnerability['severity']) . '</td>';
                     echo '<td>' . esc_html($vulnerability['date']) . '</td>';
                     echo '</tr>';
                 }
@@ -110,17 +143,23 @@ class AntiDefacePlugin {
             $recent_files = $this->scan_wp_directory();
             if (!empty($recent_files)) {
                 echo '<h2>Recent and Unwanted Files Found:</h2>';
+                echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+                echo '<input type="hidden" name="action" value="remove_unwanted_files">';
+                wp_nonce_field('remove_unwanted_files_action', 'remove_unwanted_files_nonce');
                 echo '<table class="wp-list-table widefat fixed striped">';
-                echo '<thead><tr><th>File</th><th>Date</th></tr></thead>';
+                echo '<thead><tr><th><input type="checkbox" id="select-all"></th><th>File</th><th>Date</th></tr></thead>';
                 echo '<tbody>';
                 foreach ($recent_files as $file) {
                     echo '<tr>';
+                    echo '<td><input type="checkbox" name="files[]" value="' . esc_attr($file) . '"></td>';
                     echo '<td>' . esc_html($file) . '</td>';
                     echo '<td>' . esc_html(date('Y-m-d H:i:s', filemtime($file))) . '</td>';
                     echo '</tr>';
                 }
                 echo '</tbody>';
                 echo '</table>';
+                echo '<input type="submit" value="Remove Selected Files" class="button button-primary">';
+                echo '</form>';
             } else {
                 echo '<p>No recent or unwanted files found.</p>';
             }
@@ -142,11 +181,11 @@ class AntiDefacePlugin {
                 echo '<tbody>';
                 foreach ($vulnerabilities as $vulnerability) {
                     $severity_color = $this->get_severity_color($vulnerability['severity']);
-                    echo '<tr style="background-color:' . esc_attr($severity_color) . ';">';
+                    echo '<tr>';
                     echo '<td>' . esc_html($vulnerability['file']) . '</td>';
                     echo '<td>' . esc_html($vulnerability['issue']) . '</td>';
                     echo '<td>' . esc_html($vulnerability['solution']) . '</td>';
-                    echo '<td>' . esc_html($vulnerability['severity']) . '</td>';
+                    echo '<td style="color:' . esc_attr($severity_color) . ';">' . esc_html($vulnerability['severity']) . '</td>';
                     echo '<td>' . esc_html($vulnerability['date']) . '</td>';
                     echo '</tr>';
                 }
@@ -172,7 +211,7 @@ class AntiDefacePlugin {
             case 'low':
                 return '#00ff00'; // Green
             default:
-                return '#ffffff'; // White
+                return '#000000'; // Black
         }
     }
 

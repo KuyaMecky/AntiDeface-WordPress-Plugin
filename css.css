@@ -12,21 +12,21 @@ body {
     margin: 20px auto;
     background: #fff;
     padding: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
 }
 
 /* Header */
 .header {
     background: #0073aa;
     color: #fff;
-    padding: 10px 20px;
-    border-radius: 8px 8px 0 0;
+    padding: 15px 25px;
+    border-radius: 12px 12px 0 0;
 }
 
 .header h1 {
     margin: 0;
-    font-size: 24px;
+    font-size: 28px;
 }
 
 /* Form Styles */
@@ -46,19 +46,29 @@ form input[type="password"],
 form select,
 form textarea {
     width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
+    padding: 12px;
+    margin-bottom: 15px;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 6px;
+    transition: border-color 0.3s;
+}
+
+form input[type="text"]:focus,
+form input[type="email"]:focus,
+form input[type="password"]:focus,
+form select:focus,
+form textarea:focus {
+    border-color: #0073aa;
 }
 
 form input[type="submit"] {
     background: #0073aa;
     color: #fff;
     border: none;
-    padding: 10px 20px;
+    padding: 12px 25px;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 6px;
+    transition: background 0.3s;
 }
 
 form input[type="submit"]:hover {
@@ -74,7 +84,7 @@ table {
 
 table th,
 table td {
-    padding: 10px;
+    padding: 12px;
     border: 1px solid #ddd;
     text-align: left;
 }
@@ -91,9 +101,26 @@ table tr:nth-child(even) {
 /* Footer */
 .footer {
     text-align: center;
-    padding: 10px;
+    padding: 15px;
     background: #0073aa;
     color: #fff;
-    border-radius: 0 0 8px 8px;
+    border-radius: 0 0 12px 12px;
     margin-top: 20px;
+}
+
+/* Spinner Styles */
+.spinner {
+    display: none;
+    width: 50px;
+    height: 50px;
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
