@@ -287,16 +287,42 @@ class AntiDefacePlugin {
     }
 
     public function check_index_file_integrity() {
-        if (file_exists($this->index_file) && file_exists($this->index_file_backup)) {
+        $default_index_content = <<<'EOD'
+    <?php
+    /**
+     * Front to the WordPress application. This file doesn't do anything, but loads
+     * wp-blog-header.php which does and tells WordPress to load the theme.
+     *
+     * @package WordPress
+     */
+    
+    /**
+     * Tells WordPress to load the WordPress theme and output it.
+     *
+     * @var bool
+     */
+    define( 'WP_USE_THEMES', true );
+    
+    /** Loads the WordPress Environment and Template */
+    require __DIR__ . '/wp-blog-header.php';
+    EOD;
+    
+        if (file_exists($this->index_file)) {
             $current_hash = md5_file($this->index_file);
             $backup_hash = md5_file($this->index_file_backup);
-
+    
             if ($current_hash !== $backup_hash) {
+                // Restore from backup
                 copy($this->index_file_backup, $this->index_file);
-                error_log('index.php file was modified and has been restored.');
+                error_log('index.php file was modified and has been restored from backup.');
             }
+        } else {
+            // Restore to default content if index.php is missing
+            file_put_contents($this->index_file, $default_index_content);
+            error_log('index.php file was missing and has been restored to default content.');
         }
     }
+    
 
     public static function remove_unwanted_files() {
         if (!current_user_can('manage_options')) {
